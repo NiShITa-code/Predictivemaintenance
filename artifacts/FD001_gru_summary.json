@@ -1,0 +1,15 @@
+{
+  "dataset": "FD001",
+  "model": "gru",
+  "seq_len": 50,
+  "hidden_size": 64,
+  "num_layers": 1,
+  "epochs": 20,
+  "test_rmse": 14.256858825683594,
+  "test_mae": 10.224570274353027,
+  "test_loss": 185.86844635009766,
+  "anomaly_threshold_abs_error_p95": 24.72614288330078,
+  "anomaly_rate": 0.0967741935483871,
+  "best_model_path": "artifacts\\FD001_gru_best.pt",
+  "train_time_seconds": 210.02981066703796
+}

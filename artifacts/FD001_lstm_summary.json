@@ -1,0 +1,15 @@
+{
+  "dataset": "FD001",
+  "model": "lstm",
+  "seq_len": 50,
+  "hidden_size": 64,
+  "num_layers": 1,
+  "epochs": 20,
+  "test_rmse": 14.482436180114746,
+  "test_mae": 10.99832820892334,
+  "test_loss": 209.74624633789062,
+  "anomaly_threshold_abs_error_p95": 23.115291595458984,
+  "anomaly_rate": 0.11827956989247312,
+  "best_model_path": "artifacts\\FD001_lstm_best.pt",
+  "train_time_seconds": 54.15000653266907
+}

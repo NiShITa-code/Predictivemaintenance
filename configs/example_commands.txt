@@ -1,0 +1,6 @@
+python -m src.train --data_dir data/CMAPSSData --dataset FD001 --model rnn
+python -m src.train --data_dir data/CMAPSSData --dataset FD001 --model gru
+python -m src.train --data_dir data/CMAPSSData --dataset FD001 --model lstm
+python -m src.train --data_dir data/CMAPSSData --dataset FD001 --model attention
+
+python -m src.evaluate --data_dir data/CMAPSSData --dataset FD001 --model lstm --model_path artifacts/FD001_lstm_best.pt

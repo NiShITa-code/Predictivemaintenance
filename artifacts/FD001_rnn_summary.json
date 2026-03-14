@@ -1,0 +1,15 @@
+{
+  "dataset": "FD001",
+  "model": "rnn",
+  "seq_len": 50,
+  "hidden_size": 64,
+  "num_layers": 1,
+  "epochs": 20,
+  "test_rmse": 17.487457275390625,
+  "test_mae": 12.19709587097168,
+  "test_loss": 300.4547119140625,
+  "anomaly_threshold_abs_error_p95": 43.23444747924805,
+  "anomaly_rate": 0.053763440860215055,
+  "best_model_path": "artifacts\\FD001_rnn_best.pt",
+  "train_time_seconds": 41.54573345184326
+}
