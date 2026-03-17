@@ -1,4 +1,4 @@
-# Predictive Maintenance with RNN, GRU, LSTM, and LSTM+Attention
+# Predictive maintenance with RNN, GRU, LSTM, and LSTM+Attention
 
 A PyTorch project for comparing recurrent models on Remaining Useful Life (RUL) prediction using the NASA CMAPSS turbofan engine dataset.
 
