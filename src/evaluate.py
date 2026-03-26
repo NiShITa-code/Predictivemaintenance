@@ -20,6 +20,7 @@ def main(args):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     checkpoint = torch.load(args.model_path, map_location=device)
+    run_stem = Path(args.model_path).stem.replace("_best", "")
     train_args = checkpoint["args"]
 
     dataset = train_args["dataset"]
@@ -31,6 +32,8 @@ def main(args):
     val_ratio = train_args["val_ratio"]
     max_rul = train_args["max_rul"]
     seed = train_args["seed"]
+    transformer_heads = train_args.get("transformer_heads", 4)
+    transformer_ff_dim = train_args.get("transformer_ff_dim", 128)
 
     # Prefer scaler_path saved in checkpoint.
     # Fallback: assume scaler is stored next to the checkpoint.
@@ -59,6 +62,8 @@ def main(args):
         hidden_size=hidden_size,
         num_layers=num_layers,
         dropout=dropout,
+        transformer_heads=transformer_heads,
+        transformer_ff_dim=transformer_ff_dim,
     )
     model.load_state_dict(checkpoint["model_state_dict"])
     model.to(device)
@@ -66,12 +71,12 @@ def main(args):
     criterion = nn.MSELoss()
     metrics, y_pred, y_true, attn, metadata = evaluate(model, test_loader, criterion, device)
 
-    save_json(metrics, str(Path(args.artifact_dir) / f"{dataset}_{model_name}_eval.json"))
-    np.save(Path(args.artifact_dir) / f"{dataset}_{model_name}_eval_y_true.npy", y_true)
-    np.save(Path(args.artifact_dir) / f"{dataset}_{model_name}_eval_y_pred.npy", y_pred)
+    save_json(metrics, str(Path(args.artifact_dir) / f"{run_stem}_eval.json"))
+    np.save(Path(args.artifact_dir) / f"{run_stem}_eval_y_true.npy", y_true)
+    np.save(Path(args.artifact_dir) / f"{run_stem}_eval_y_pred.npy", y_pred)
 
     if attn is not None:
-        np.save(Path(args.artifact_dir) / f"{dataset}_{model_name}_eval_attention.npy", attn)
+        np.save(Path(args.artifact_dir) / f"{run_stem}_eval_attention.npy", attn)
 
     print(metrics)
 
@@ -82,7 +87,7 @@ def main(args):
     plt.legend()
     plt.title("Evaluation predictions")
     plt.tight_layout()
-    plt.savefig(Path(args.artifact_dir) / f"{dataset}_{model_name}_eval_plot.png", dpi=160)
+    plt.savefig(Path(args.artifact_dir) / f"{run_stem}_eval_plot.png", dpi=160)
     plt.close()
 
     if attn is not None:
@@ -92,7 +97,7 @@ def main(args):
         plt.colorbar()
         plt.title("Attention heatmap")
         plt.tight_layout()
-        plt.savefig(Path(args.artifact_dir) / f"{dataset}_{model_name}_eval_attention.png", dpi=160)
+        plt.savefig(Path(args.artifact_dir) / f"{run_stem}_eval_attention.png", dpi=160)
         plt.close()
 
 

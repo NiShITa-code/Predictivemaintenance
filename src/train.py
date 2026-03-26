@@ -153,14 +153,26 @@ def main(args):
         hidden_size=args.hidden_size,
         num_layers=args.num_layers,
         dropout=args.dropout,
+        transformer_heads=args.transformer_heads,
+        transformer_ff_dim=args.transformer_ff_dim,
     )
     model.to(device)
 
     criterion = nn.MSELoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
+    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+        optimizer,
+        mode="min",
+        factor=args.lr_scheduler_factor,
+        patience=args.lr_scheduler_patience,
+        min_lr=args.min_lr,
+    )
 
     best_val = float("inf")
-    best_path = Path(args.artifact_dir) / f"{args.dataset}_{args.model}_best.pt"
+    best_epoch = 0
+    epochs_without_improvement = 0
+    run_stem = f"{args.dataset}_{args.model}_seq{args.seq_len}"
+    best_path = Path(args.artifact_dir) / f"{run_stem}_best.pt"
 
     train_losses, val_losses = [], []
     start = time.time()
@@ -171,26 +183,46 @@ def main(args):
 
         train_losses.append(train_loss)
         val_losses.append(val_metrics["loss"])
+        scheduler.step(val_metrics["loss"])
+        current_lr = optimizer.param_groups[0]["lr"]
 
         print(
             f"Epoch {epoch:03d}/{args.epochs} | "
             f"train_loss={train_loss:.4f} | "
             f"val_loss={val_metrics['loss']:.4f} | "
             f"val_rmse={val_metrics['rmse']:.4f} | "
-            f"val_mae={val_metrics['mae']:.4f}"
+            f"val_mae={val_metrics['mae']:.4f} | "
+            f"lr={current_lr:.6f}"
         )
 
         if val_metrics["loss"] < best_val:
             best_val = val_metrics["loss"]
+            best_epoch = epoch
+            epochs_without_improvement = 0
             torch.save(
                 {
                     "model_state_dict": model.state_dict(),
                     "feature_columns": bundle.feature_columns,
                     "args": vars(args),
                     "scaler_path": bundle.scaler_path,
+                    "best_epoch": best_epoch,
+                    "best_val_loss": best_val,
                 },
                 best_path,
             )
+        else:
+            epochs_without_improvement += 1
+
+        if (
+            args.early_stopping_patience > 0
+            and epochs_without_improvement >= args.early_stopping_patience
+            and epoch < args.epochs
+        ):
+            print(
+                f"Early stopping triggered at epoch {epoch:03d}. "
+                f"Best epoch was {best_epoch:03d} with val_loss={best_val:.4f}"
+            )
+            break
 
     elapsed = time.time() - start
     print(f"Training finished in {elapsed:.1f}s")
@@ -211,6 +243,8 @@ def main(args):
         "hidden_size": args.hidden_size,
         "num_layers": args.num_layers,
         "epochs": args.epochs,
+        "epochs_trained": len(train_losses),
+        "best_epoch": best_epoch,
         "test_rmse": test_metrics["rmse"],
         "test_mae": test_metrics["mae"],
         "test_loss": test_metrics["loss"],
@@ -218,21 +252,26 @@ def main(args):
         "anomaly_rate": anomaly_rate,
         "best_model_path": str(best_path),
         "train_time_seconds": elapsed,
+        "final_learning_rate": optimizer.param_groups[0]["lr"],
+        "early_stopping_patience": args.early_stopping_patience,
+        "lr_scheduler_patience": args.lr_scheduler_patience,
+        "lr_scheduler_factor": args.lr_scheduler_factor,
+        "min_lr": args.min_lr,
     }
 
-    save_json(summary, str(Path(args.artifact_dir) / f"{args.dataset}_{args.model}_summary.json"))
+    save_json(summary, str(Path(args.artifact_dir) / f"{run_stem}_summary.json"))
 
-    np.save(Path(args.artifact_dir) / f"{args.dataset}_{args.model}_y_true.npy", y_true)
-    np.save(Path(args.artifact_dir) / f"{args.dataset}_{args.model}_y_pred.npy", y_pred)
-    np.save(Path(args.artifact_dir) / f"{args.dataset}_{args.model}_train_losses.npy", np.array(train_losses))
-    np.save(Path(args.artifact_dir) / f"{args.dataset}_{args.model}_val_losses.npy", np.array(val_losses))
+    np.save(Path(args.artifact_dir) / f"{run_stem}_y_true.npy", y_true)
+    np.save(Path(args.artifact_dir) / f"{run_stem}_y_pred.npy", y_pred)
+    np.save(Path(args.artifact_dir) / f"{run_stem}_train_losses.npy", np.array(train_losses))
+    np.save(Path(args.artifact_dir) / f"{run_stem}_val_losses.npy", np.array(val_losses))
 
     if attn is not None:
-        np.save(Path(args.artifact_dir) / f"{args.dataset}_{args.model}_attention.npy", attn)
+        np.save(Path(args.artifact_dir) / f"{run_stem}_attention.npy", attn)
 
-    plot_curves(train_losses, val_losses, str(Path(args.artifact_dir) / f"{args.dataset}_{args.model}_loss.png"))
-    plot_predictions(y_true, y_pred, str(Path(args.artifact_dir) / f"{args.dataset}_{args.model}_predictions.png"))
-    plot_attention(attn, str(Path(args.artifact_dir) / f"{args.dataset}_{args.model}_attention.png"))
+    plot_curves(train_losses, val_losses, str(Path(args.artifact_dir) / f"{run_stem}_loss.png"))
+    plot_predictions(y_true, y_pred, str(Path(args.artifact_dir) / f"{run_stem}_predictions.png"))
+    plot_attention(attn, str(Path(args.artifact_dir) / f"{run_stem}_attention.png"))
 
     print("Test metrics:", summary)
 
@@ -241,7 +280,12 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--data_dir", type=str, required=True)
     parser.add_argument("--dataset", type=str, default="FD001")
-    parser.add_argument("--model", type=str, default="lstm", choices=["rnn", "gru", "lstm", "attention"])
+    parser.add_argument(
+        "--model",
+        type=str,
+        default="lstm",
+        choices=["rnn", "gru", "lstm", "attention", "transformer"],
+    )
     parser.add_argument("--artifact_dir", type=str, default="artifacts")
     parser.add_argument("--seq_len", type=int, default=50)
     parser.add_argument("--batch_size", type=int, default=64)
@@ -254,5 +298,11 @@ if __name__ == "__main__":
     parser.add_argument("--val_ratio", type=float, default=0.2)
     parser.add_argument("--max_rul", type=int, default=125)
     parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument("--early_stopping_patience", type=int, default=5)
+    parser.add_argument("--lr_scheduler_patience", type=int, default=2)
+    parser.add_argument("--lr_scheduler_factor", type=float, default=0.5)
+    parser.add_argument("--min_lr", type=float, default=1e-5)
+    parser.add_argument("--transformer_heads", type=int, default=4)
+    parser.add_argument("--transformer_ff_dim", type=int, default=128)
 
     main(parser.parse_args())

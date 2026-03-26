@@ -8,7 +8,7 @@ import streamlit as st
 
 st.set_page_config(page_title="Predictive Maintenance Dashboard", layout="wide")
 st.title("Predictive Maintenance Experiment Dashboard")
-st.caption("Compare RNN, GRU, LSTM, and Attention-LSTM runs on NASA CMAPSS")
+st.caption("Compare RNN, GRU, LSTM, Attention-LSTM, and Transformer runs on NASA CMAPSS")
 
 artifact_dir = Path("artifacts")
 
@@ -86,6 +86,35 @@ with **sequence length = {best_row['seq_len']}**.
 This run achieved the lowest test RMSE among the selected experiments.
 """
 )
+
+# Best run per dataset
+st.subheader("Best Run Per Dataset")
+best_by_dataset = (
+    filtered_df.sort_values("test_rmse")
+    .groupby("dataset", as_index=False)
+    .first()[["dataset", "model", "seq_len", "test_rmse", "test_mae", "train_time_seconds", "run_name"]]
+)
+best_by_dataset["model"] = best_by_dataset["model"].str.upper()
+best_by_dataset = best_by_dataset.rename(
+    columns={
+        "model": "best_model",
+        "seq_len": "best_seq_len",
+        "test_rmse": "best_test_rmse",
+        "test_mae": "best_test_mae",
+        "train_time_seconds": "train_time_seconds",
+        "run_name": "run_name",
+    }
+)
+st.dataframe(best_by_dataset, use_container_width=True)
+
+fig_best, ax_best = plt.subplots(figsize=(10, 4))
+ax_best.bar(best_by_dataset["dataset"], best_by_dataset["best_test_rmse"])
+ax_best.set_ylabel("Best Test RMSE")
+ax_best.set_xlabel("Dataset")
+ax_best.set_title("Best RMSE by Dataset")
+plt.tight_layout()
+st.pyplot(fig_best)
+plt.close(fig_best)
 
 # Summary table
 st.subheader("Experiment Summary Table")

@@ -1,4 +1,4 @@
-# Predictive Maintenance with RNN, GRU, LSTM, and LSTM+Attention
+# Predictive Maintenance with RNN, GRU, LSTM, LSTM+Attention, and Transformer
 
 A PyTorch project for comparing recurrent models on Remaining Useful Life (RUL) prediction using the NASA CMAPSS turbofan engine dataset.
 
@@ -10,6 +10,7 @@ A PyTorch project for comparing recurrent models on Remaining Useful Life (RUL) 
   - GRU
   - LSTM
   - LSTM + Temporal Attention
+  - Transformer Encoder
 - Reports RMSE and MAE
 - Saves plots and artifacts
 - Includes a Streamlit dashboard for interactive inspection
@@ -37,11 +38,26 @@ python -m src.train --data_dir data/CMAPSSData --dataset FD001 --model rnn
 python -m src.train --data_dir data/CMAPSSData --dataset FD001 --model gru
 python -m src.train --data_dir data/CMAPSSData --dataset FD001 --model lstm
 python -m src.train --data_dir data/CMAPSSData --dataset FD001 --model attention
+python -m src.train --data_dir data/CMAPSSData --dataset FD001 --model transformer
+python -m src.train --data_dir data/CMAPSSData --dataset FD001 --model gru --early_stopping_patience 5 --lr_scheduler_patience 2
+python -m src.train --data_dir data/CMAPSSData --dataset FD001 --model transformer --transformer_heads 4 --transformer_ff_dim 128
+```
+
+Artifacts are saved with the sequence length in the filename, for example:
+`artifacts/FD001_lstm_seq50_best.pt`
+`artifacts/FD001_lstm_seq50_summary.json`
+
+## Run a sweep
+```bash
+python -m src.experiments --dry_run
+python -m src.experiments --skip_existing
+python -m src.experiments --datasets FD001 FD002 --models gru lstm --seq_lens 30 50 80 --epochs 30
+python -m src.experiments --datasets FD001 FD002 --models gru lstm --seq_lens 30 50 80 --epochs 30 --early_stopping_patience 5
 ```
 
 ## Evaluate
 ```bash
-python -m src.evaluate --data_dir data/CMAPSSData --dataset FD001 --model_path artifacts/FD001_lstm_best.pt --model lstm
+python -m src.evaluate --data_dir data/CMAPSSData --model_path artifacts/FD001_lstm_seq50_best.pt
 ```
 
 ## Run dashboard
@@ -92,6 +108,7 @@ In this project we build a deep learning system that predicts Remaining Useful L
 - GRU
 - LSTM
 - Attention-based LSTM
+- Transformer encoder
 
 ### Problem Statement
 
@@ -132,9 +149,13 @@ Train:
 `python -m src.train --data_dir data/CMAPSSData --dataset FD001 --model gru`
 `python -m src.train --data_dir data/CMAPSSData --dataset FD001 --model lstm`
 `python -m src.train --data_dir data/CMAPSSData --dataset FD001 --model attention`
+`python -m src.train --data_dir data/CMAPSSData --dataset FD001 --model transformer`
+
+Sweep:
+`python -m src.experiments --skip_existing`
 
 Evaluate:
-`python -m src.evaluate --data_dir data/CMAPSSData --model_path artifacts/FD001_lstm_best.pt`
+`python -m src.evaluate --data_dir data/CMAPSSData --model_path artifacts/FD001_lstm_seq50_best.pt`
 
 Dashboard:
 `streamlit run dashboard/app.py`
@@ -147,5 +168,3 @@ Dashboard:
 - Anomaly detection from prediction error is practical.
 
 ---
-
-
